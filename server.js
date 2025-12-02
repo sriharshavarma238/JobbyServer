@@ -81,6 +81,14 @@ app.use('/admin', adminRouter);
 app.use('/user', userRouter);
 app.use('/jobApplication', jobApplicationRouter)
 
+// Health check endpoint
+app.get('/', (req, res) => {
+    res.json({ message: 'Jobby API is running', status: 'ok' });
+});
+
+// Export app for Vercel
+module.exports = app;
+
 if (require.main === module) {
     const port = process.env.PORT || 3000;
     connectToMongoDB().then(() => {
