@@ -146,6 +146,35 @@ userRouter.get('/jobs', userAuth, async (req, res) => {
 
 })
 
+userRouter.get('/jobs/:jobId', userAuth, async (req, res) => {
+    const { jobId } = req.params;
+    
+    try {
+        const job = await jobModel.findById(jobId);
+        
+        if (!job) {
+            return res.status(404).json({ message: "Job not found" });
+        }
+
+        // Check if user has already applied
+        const existingApplication = await jobApplicationModel.findOne({
+            userId: req.userId,
+            jobId: jobId
+        });
+
+        res.json({
+            job,
+            hasApplied: !!existingApplication
+        });
+    } catch (err) {
+        console.error("Error fetching job details:", err);
+        res.status(500).json({
+            message: "Error fetching job details",
+            error: err.message
+        });
+    }
+})
+
 // userRouter.get('/applications', userAuth, async (req, res) => {
 
 //     try{
