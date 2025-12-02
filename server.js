@@ -7,11 +7,17 @@ dotenv.config();
 
 const app = express();
 
-// Enable CORS for frontend requests
+// Enable CORS for frontend requests with proper headers
 app.use(cors({
-    origin: process.env.FRONTEND_URL || '*', // Set FRONTEND_URL in .env for production
-    credentials: true
+    origin: '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 
 let mongoConnected = false;
 
