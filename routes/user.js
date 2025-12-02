@@ -148,10 +148,10 @@ userRouter.get('/jobs', userAuth, async (req, res) => {
 
 userRouter.get('/jobs/:jobId', userAuth, async (req, res) => {
     const { jobId } = req.params;
-    
+
     try {
         const job = await jobModel.findById(jobId);
-        
+
         if (!job) {
             return res.status(404).json({ message: "Job not found" });
         }
