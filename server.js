@@ -77,17 +77,25 @@ const { userRouter } = require('./routes/user')
 const { jobApplicationRouter } = require('./routes/jobApplication');
 const { jobApplicationModel } = require('./db');
 
+// Middleware to ensure MongoDB connection before handling requests
+app.use(async (req, res, next) => {
+    try {
+        await connectToMongoDB();
+        next();
+    } catch (error) {
+        console.error('MongoDB connection failed:', error);
+        res.status(500).json({ error: 'Database connection failed' });
+    }
+});
+
 app.use('/admin', adminRouter);
 app.use('/user', userRouter);
 app.use('/jobApplication', jobApplicationRouter)
 
 // Health check endpoint
 app.get('/', (req, res) => {
-    res.json({ message: 'Jobby API is running', status: 'ok' });
+    res.json({ message: 'Jobby API is running', status: 'ok', dbConnected: mongoConnected });
 });
-
-// Export app for Vercel
-module.exports = app;
 
 if (require.main === module) {
     const port = process.env.PORT || 3000;
@@ -98,4 +106,5 @@ if (require.main === module) {
     })
 }
 
+// Export app for Vercel
 module.exports = app;
