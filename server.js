@@ -15,87 +15,57 @@ app.use(cors({
 
 let mongoConnected = false;
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-async function connectToMongoDB(retries = 5, backoff = 2000) {
-    if (mongoConnected) return;
-
-    const mongooseOptions = {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 45000,
-        family: 4,
-        // For debug ONLY: set DEBUG_TLS=1 in your env to allow invalid certs while you troubleshoot.
-        // Do NOT enable this in production.
-        tls: true,
-        tlsAllowInvalidCertificates: process.env.DEBUG_TLS === '1'
-    };
-
-    mongoose.set('debug', !!process.env.MONGOOSE_DEBUG);
+async function connectToMongoDB() {
+    if (mongoConnected || mongoose.connection.readyState === 1) {
+        return;
+    }
 
     try {
-        console.log(`Connecting to MongoDB (attempt ${6 - retries})...`);
-        await mongoose.connect(process.env.MONGO_URI, mongooseOptions);
+        await mongoose.connect(process.env.MONGO_URI, {
+            serverSelectionTimeoutMS: 30000,
+            socketTimeoutMS: 45000,
+        });
         mongoConnected = true;
         console.log('MongoDB Connection Successful');
     } catch (error) {
-        console.error('MongoDB connect error (attempt):', error.message || error);
-        if (retries > 0) {
-            console.log(`Retrying MongoDB connection in ${backoff}ms (${retries} retries left)...`);
-            await sleep(backoff);
-            return connectToMongoDB(retries - 1, Math.min(backoff * 2, 10000));
-        }
-        console.error('Could not connect to MongoDB after retries. Exiting.');
-        // choose exit or rethrow depending on whether you want the process to continue
-        process.exit(1);
+        console.error('MongoDB connection error:', error.message);
+        throw error;
     }
 }
-
-// async function connectToMongoDB() {
-//     if (mongoConnected) {
-//         return;
-//     }
-
-//     try{
-//         await mongoose.connect(process.env.MONGO_URI, {
-//             serverSelectionTimeoutMS: 5000,
-//             socketTimeoutMS: 45000,
-//         })
-//         mongoConnected = true;
-//         console.log('MongoDB Connection Successful');
-//     }catch(error){  
-//         console.error('Error connecting to MongoDB:', error);
-//         throw error;
-//     }
-// }
 
 app.use(express.json())
 
 const { adminRouter } = require('./routes/admin');
 const { userRouter } = require('./routes/user')
 const { jobApplicationRouter } = require('./routes/jobApplication');
-const { jobApplicationModel } = require('./db');
 
-// Middleware to ensure MongoDB connection before handling requests
+// Health check endpoint (before middleware to avoid DB connection requirement)
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'Jobby API is running', 
+        status: 'ok', 
+        dbConnected: mongoose.connection.readyState === 1 
+    });
+});
+
+// Middleware to ensure MongoDB connection before handling API requests
 app.use(async (req, res, next) => {
+    if (req.path === '/') {
+        return next(); // Skip for health check
+    }
+    
     try {
         await connectToMongoDB();
         next();
     } catch (error) {
         console.error('MongoDB connection failed:', error);
-        res.status(500).json({ error: 'Database connection failed' });
+        res.status(500).json({ error: 'Database connection failed', details: error.message });
     }
 });
 
 app.use('/admin', adminRouter);
 app.use('/user', userRouter);
 app.use('/jobApplication', jobApplicationRouter)
-
-// Health check endpoint
-app.get('/', (req, res) => {
-    res.json({ message: 'Jobby API is running', status: 'ok', dbConnected: mongoConnected });
-});
 
 if (require.main === module) {
     const port = process.env.PORT || 3000;
