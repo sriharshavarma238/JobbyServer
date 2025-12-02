@@ -39,28 +39,16 @@ const { adminRouter } = require('./routes/admin');
 const { userRouter } = require('./routes/user')
 const { jobApplicationRouter } = require('./routes/jobApplication');
 
-// Health check endpoint (before middleware to avoid DB connection requirement)
+// Initialize MongoDB connection immediately
+connectToMongoDB().catch(err => console.error('Initial MongoDB connection failed:', err));
+
+// Health check endpoint
 app.get('/', (req, res) => {
     res.json({ 
         message: 'Jobby API is running', 
         status: 'ok', 
         dbConnected: mongoose.connection.readyState === 1 
     });
-});
-
-// Middleware to ensure MongoDB connection before handling API requests
-app.use(async (req, res, next) => {
-    if (req.path === '/') {
-        return next(); // Skip for health check
-    }
-    
-    try {
-        await connectToMongoDB();
-        next();
-    } catch (error) {
-        console.error('MongoDB connection failed:', error);
-        res.status(500).json({ error: 'Database connection failed', details: error.message });
-    }
 });
 
 app.use('/admin', adminRouter);
