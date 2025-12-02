@@ -82,7 +82,15 @@ app.use('/jobApplication', jobApplicationRouter)
 
 // Health check endpoint
 app.get('/', (req, res) => {
-    res.json({ message: 'Jobby API is running', status: 'ok', dbConnected: mongoConnected });
+    res.json({ 
+        status: 'success',
+        message: 'API is running',
+        data: {
+            service: 'Jobby API',
+            version: '1.0.0',
+            database: mongoConnected ? 'connected' : 'disconnected'
+        }
+    });
 });
 
 if (require.main === module) {
